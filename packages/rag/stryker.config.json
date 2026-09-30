@@ -1,0 +1,8 @@
+{
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "mutate": ["src/answer.ts", "src/pipeline.ts", "src/prompt.ts"],
+  "reporters": ["clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "thresholds": { "high": 90, "low": 70, "break": null }
+}

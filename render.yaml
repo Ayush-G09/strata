@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: strata-server
+    runtime: node
+    plan: free
+    # Runs from the monorepo root so npm workspaces can resolve @strata/core, @strata/rag and @strata/eval as
+    # symlinked local packages — same reason Bulwark's compose setup always installed from its own repo root.
+    buildCommand: npm install
+    # tsx runs the TypeScript server directly with no separate compile step — simple and honest for a project
+    # this size; a larger service would compile ahead of time instead.
+    startCommand: npx tsx apps/server/src/main.ts
+    envVars:
+      - key: STRATA_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false # set this yourself in the Render dashboard — never committed

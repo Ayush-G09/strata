@@ -1,0 +1,19 @@
+{
+  "name": "@strata/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "dev": "tsx src/main.ts",
+    "eval": "tsx scripts/runEval.mts"
+  },
+  "dependencies": {
+    "@strata/core": "*",
+    "@strata/rag": "*",
+    "@strata/eval": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

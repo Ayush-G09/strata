@@ -1,0 +1,8 @@
+{
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "mutate": ["src/chunk.ts", "src/bm25.ts", "src/hybrid.ts", "src/embeddings.ts", "src/vectorStore.ts"],
+  "reporters": ["clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "thresholds": { "high": 90, "low": 70, "break": null }
+}

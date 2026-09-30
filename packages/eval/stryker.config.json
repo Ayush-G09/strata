@@ -1,0 +1,8 @@
+{
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "mutate": ["src/parsing.ts", "src/claims.ts", "src/faithfulness.ts", "src/answerRelevancy.ts", "src/contextPrecision.ts", "src/contextRecall.ts", "src/baselineRetriever.ts", "src/harness.ts"],
+  "reporters": ["clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "thresholds": { "high": 90, "low": 70, "break": null }
+}
