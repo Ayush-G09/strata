@@ -68,11 +68,16 @@ docFileInput.addEventListener('change', async () => {
   }
 })
 
+function setBusy(button: HTMLButtonElement, busy: boolean, label: string) {
+  button.disabled = busy
+  button.innerHTML = busy ? `<span class="spinner"></span>${label}` : label
+}
+
 addDocBtn.addEventListener('click', async () => {
   const id = docIdInput.value.trim() || `doc-${++docCount}`
   const text = docTextInput.value.trim()
   if (!text) return
-  addDocBtn.disabled = true
+  setBusy(addDocBtn, true, 'Adding…')
   try {
     const chunking = chunkStrategySelect.value === 'fixed'
       ? { strategy: 'fixed', size: 400, overlap: 60 }
@@ -85,7 +90,9 @@ addDocBtn.addEventListener('click', async () => {
     if (!res.ok) throw new Error(data.error ?? 'failed to add document')
     const item = document.createElement('div')
     item.className = 'doc-item'
-    item.innerHTML = `<b>${escapeHtml(id)}</b> — ${data.chunksAdded} chunk(s)`
+    item.innerHTML = `<svg class="check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>${escapeHtml(id)}</b> — ${data.chunksAdded} chunk(s)</span>`
+    item.style.display = 'flex'
+    item.style.alignItems = 'center'
     docList.appendChild(item)
     docTextInput.value = ''
     docIdInput.value = ''
@@ -93,16 +100,15 @@ addDocBtn.addEventListener('click', async () => {
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err))
   } finally {
-    addDocBtn.disabled = false
+    setBusy(addDocBtn, false, 'Add document')
   }
 })
 
 async function ask() {
   const question = questionInput.value.trim()
   if (!question) return
-  askBtn.disabled = true
-  answerEl.textContent = 'Thinking…'
-  answerEl.classList.add('hint')
+  setBusy(askBtn, true, 'Asking…')
+  answerEl.innerHTML = '<div class="empty-state"><span class="spinner" style="border-color: rgba(94,198,255,0.25); border-top-color: var(--accent); width:18px; height:18px;"></span><span>Retrieving context and generating an answer…</span></div>'
   try {
     const res = await fetch(`${API}/query`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -114,16 +120,15 @@ async function ask() {
     renderAnswer(data.answer.text as string, data.answer.invalidCitationNumbers as number[])
     renderChunks(lastRetrieved)
   } catch (err) {
-    answerEl.textContent = err instanceof Error ? err.message : String(err)
+    answerEl.innerHTML = `<div class="empty-state" style="color: var(--bad);">${escapeHtml(err instanceof Error ? err.message : String(err))}</div>`
   } finally {
-    askBtn.disabled = false
+    setBusy(askBtn, false, 'Ask')
   }
 }
 askBtn.addEventListener('click', ask)
 questionInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask() })
 
 function renderAnswer(text: string, invalidNumbers: number[]) {
-  answerEl.classList.remove('hint')
   const html = escapeHtml(text).replace(/\[(\d+)\]/g, (_m, nStr) => {
     const n = Number(nStr)
     const chunk = lastRetrieved[n - 1]
@@ -144,10 +149,10 @@ function renderChunks(chunks: RetrievedChunk[]) {
     card.id = `chunk-${cssEscape(c.chunkId)}`
     card.innerHTML = `
       <div class="meta">
-        <span>doc: <b>${escapeHtml(c.docId)}</b></span>
-        <span>fused: <b>${c.fusedScore.toFixed(3)}</b></span>
-        <span>vec#: <b>${c.vectorRank ?? '—'}</b></span>
-        <span>bm25#: <b>${c.bm25Rank ?? '—'}</b></span>
+        <span class="doc-badge">${escapeHtml(c.docId)}</span>
+        <span>fused <b>${c.fusedScore.toFixed(3)}</b></span>
+        <span>vec #<b>${c.vectorRank ?? '—'}</b></span>
+        <span>bm25 #<b>${c.bm25Rank ?? '—'}</b></span>
       </div>
       <div class="chunk-text">${escapeHtml(c.text)}</div>
     `
@@ -163,21 +168,31 @@ function highlightChunk(chunkId: string) {
   card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
+const METRIC_LABELS: Record<string, string> = {
+  faithfulness: 'Faithfulness', answerRelevancy: 'Answer relevancy',
+  contextPrecision: 'Context precision', contextRecall: 'Context recall', overall: 'Overall',
+}
+
 runEvalBtn.addEventListener('click', async () => {
-  runEvalBtn.disabled = true
-  evalResults.innerHTML = '<p class="hint">Running 2 real cases through the connected model… this calls a real LLM per claim/chunk judged, so it can take a little while.</p>'
+  setBusy(runEvalBtn, true, 'Running…')
+  evalResults.innerHTML = '<div class="empty-state"><span class="spinner" style="border-color: rgba(94,198,255,0.25); border-top-color: var(--accent);"></span><span>Running 2 real cases through the connected model— calls a real LLM per claim/chunk judged, so it can take a little while.</span></div>'
   try {
     const res = await fetch(`${API}/eval-sample`)
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? 'eval failed')
     const rows = (['faithfulness', 'answerRelevancy', 'contextPrecision', 'contextRecall', 'overall'] as const)
-      .map((key) => `<div class="eval-row"><span>${key}</span><span><span class="hybrid">${pct(data.hybrid.average[key])}</span> vs <span class="naive">${pct(data.naive.average[key])}</span></span></div>`)
+      .map((key) => `<div class="eval-row"><span class="metric-name">${METRIC_LABELS[key]}</span><span class="scores"><span class="hybrid">${pct(data.hybrid.average[key])}</span><span class="vs">vs</span><span class="naive">${pct(data.naive.average[key])}</span></span></div>`)
       .join('')
-    evalResults.innerHTML = `<div class="hint" style="margin-bottom:4px;"><span class="hybrid">hybrid</span> vs <span class="naive">naive baseline</span>, 2 real cases:</div>${rows}`
+    evalResults.innerHTML = `
+      <div class="eval-legend">
+        <span><span class="swatch" style="background:var(--good);"></span>Strata hybrid</span>
+        <span><span class="swatch" style="background:var(--text-faint);"></span>Naive baseline</span>
+      </div>
+      ${rows}`
   } catch (err) {
-    evalResults.innerHTML = `<p class="hint">${escapeHtml(err instanceof Error ? err.message : String(err))}</p>`
+    evalResults.innerHTML = `<div class="empty-state" style="color: var(--bad);">${escapeHtml(err instanceof Error ? err.message : String(err))}</div>`
   } finally {
-    runEvalBtn.disabled = false
+    setBusy(runEvalBtn, false, 'Run sample evaluation')
   }
 })
 
